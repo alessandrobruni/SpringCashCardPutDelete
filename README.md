@@ -403,3 +403,350 @@ BUILD SUCCESSFUL in 6s
 
 
 
+ <div class="rich-text col-span-2">
+                <h1>Implementing DELETE</h1>
+
+                                    
+<p>In this lesson, we&rsquo;ll implement the last of the four CRUD operations: Delete! By now, you should be familiar with what question we should ask first: What is the API&rsquo;s data specification for the Delete endpoint? The specification includes the details of the Request and Response.</p>
+<p>At the risk of spoiling the outcome, this is the specification that we&rsquo;ll define:</p>
+<p>Request:</p>
+<ul><li>Verb: <code>DELETE</code></li>
+<li>URI: <code>/cashcards/{id}</code></li>
+<li>Body: <em>(empty)</em></li>
+</ul><p>Response:</p>
+<ul><li>Status code: <code>204 NO CONTENT</code></li>
+<li>Body: <em>(empty)</em></li>
+</ul><p>We&rsquo;ll return the <code>204 NO CONTENT</code> status code for a successful delete, but there are additional cases:</p>
+<table><thead><tr><th>Response Code</th><th>Use Case</th></tr></thead><tbody><tr><td><code>204 NO CONTENT</code></td><td><ul><li>The record exists, and </li> <li>The Principal is authorized, and </li> <li>The record was successfully deleted. </li> </ul></td></tr><tr><td><code>404 NOT FOUND</code></td><td><ul><li>The record does not exist (a non-existent ID was sent). </li> </ul></td></tr><tr><td><code>404 NOT FOUND</code></td><td><ul><li>The record does exist but the Principal is not the owner. </li> </ul></td></tr></tbody></table><p>Why do we return 404 for the "ID does not exist" and "not authorized to access this ID" cases? In order to not "leak" information: If the API returned different results for the two cases, then an unauthorized user would be able to discover specific IDs that they are not authorized to access.</p>
+<h2 id="additional-options" class="anchored"><a href="#additional-options" class="anchor" role="button"></a>Additional Options</h2>
+<p>Let&rsquo;s dig deeper into some more options we'll consider when implementing a Delete operation.</p>
+<h3>Hard and Soft Delete</h3>
+<p>So what does it mean to delete a Cash Card from a database&rsquo;s point of view? Similar to how we decided that our Update operation means &rdquo;replace the entire existing record&rdquo; (as opposed to supporting partial update), we need to decide what happens to resources when they are deleted.</p>
+<p>A simple option, called <strong>hard delete</strong>, is to delete the record from the database. With a hard delete, it&rsquo;s gone forever. So what can we do if we need data that existed prior to its deletion?</p>
+<p>An alternative is <strong>soft delete</strong> which works by marking records as "deleted" in the database (so that they are retained, but marked as deleted). For example, we can introduce an <code>IS_DELETED</code> boolean or a <code>DELETED_DATE</code> timestamp column and then set that value-instead of fully removing the record by deleting the database row(s). With a soft delete, we also need to change how Repositories interact with the database. For example, a repository needs to respect the &ldquo;deleted&rdquo; column and exclude records marked deleted from Read requests.</p>
+<h2 id="audit-trail-and-archiving" class="anchored"><a href="#audit-trail-and-archiving" class="anchor" role="button"></a>Audit Trail and Archiving</h2>
+<p>When working with databases, you&rsquo;ll find that there&rsquo;s often a requirement to keep a record of modifications to data records. For example:</p>
+<ul><li>A customer service representative might need to know <em>when</em> a customer deleted their Cash Card.</li>
+<li>There may be data retention compliance regulations which require deleted data to be retained for a certain period of time.</li>
+</ul><p>If the Cash Card is hard-deleted then we would need to store additional data to be able to answer this question. Let&rsquo;s discuss some ways to record historical information:</p>
+<ul><li><strong>Archive</strong> (move) the deleted data into a different location.</li>
+<li>Add <strong>audit fields</strong> to the record itself. For example, the <code>DELETED_DATE</code> column that we mentioned already. Additional audit fields can be added, for example <code>DELETED_BY_USER</code>. Again, this is not limited to Delete operations, but Create and Update also.</li>
+</ul><p>APIs which implement soft delete and audit fields can return the state of the object in the response, and the <code>200 OK</code> status code. So why did we choose to use 204 instead of 200? Because the <code>204 NO CONTENT</code> status implies that there is no body in the response.</p>
+<ul><li>Maintain an <strong>audit trail</strong>. The audit trail is a record of all important operations done to a record. It can contain not only Delete operations, but Create and Update as well.</li>
+</ul><p>The advantage of an audit trail over audit fields is that a trail records all events, whereas audit fields on the record capture only the most recent operation. An audit trail can be stored in a different database location, or even in log files.</p>
+<p>It&rsquo;s worth mentioning that a combination of several of the above strategies is possible. Here are some examples:</p>
+<ul><li>We could implement soft delete, and then have a separate process which hard-deletes or archives soft-deleted records after a certain time period, like once per year.</li>
+<li>We could implement hard delete, and archive the deleted records.</li>
+<li>In any of the above cases, we could keep an audit log of which operations happened when.</li>
+</ul><p>Finally, observe that even the simple specification that we&rsquo;ve chosen doesn&rsquo;t determine whether we implement hard or soft delete. It also doesn&rsquo;t determine whether we add audit fields or keep an audit trail. However, the fact that we chose to return <code>204 NO CONTENT</code> implies that soft-delete is not happening, since if it was, we&rsquo;d probably choose to return <code>200 OK</code> with the record in the body.</p>
+
+
+
+ <div class="rich-text col-span-2">
+                <h1>Implementing DELETE</h1>
+
+                                    
+<p>In this lesson, we&rsquo;ll implement the last of the four CRUD operations: Delete! By now, you should be familiar with what question we should ask first: What is the API&rsquo;s data specification for the Delete endpoint? The specification includes the details of the Request and Response.</p>
+<p>At the risk of spoiling the outcome, this is the specification that we&rsquo;ll define:</p>
+<p>Request:</p>
+<ul><li>Verb: <code>DELETE</code></li>
+<li>URI: <code>/cashcards/{id}</code></li>
+<li>Body: <em>(empty)</em></li>
+</ul><p>Response:</p>
+<ul><li>Status code: <code>204 NO CONTENT</code></li>
+<li>Body: <em>(empty)</em></li>
+</ul><p>We&rsquo;ll return the <code>204 NO CONTENT</code> status code for a successful delete, but there are additional cases:</p>
+<table><thead><tr><th>Response Code</th><th>Use Case</th></tr></thead><tbody><tr><td><code>204 NO CONTENT</code></td><td><ul><li>The record exists, and </li> <li>The Principal is authorized, and </li> <li>The record was successfully deleted. </li> </ul></td></tr><tr><td><code>404 NOT FOUND</code></td><td><ul><li>The record does not exist (a non-existent ID was sent). </li> </ul></td></tr><tr><td><code>404 NOT FOUND</code></td><td><ul><li>The record does exist but the Principal is not the owner. </li> </ul></td></tr></tbody></table><p>Why do we return 404 for the "ID does not exist" and "not authorized to access this ID" cases? In order to not "leak" information: If the API returned different results for the two cases, then an unauthorized user would be able to discover specific IDs that they are not authorized to access.</p>
+<h2 id="additional-options" class="anchored"><a href="#additional-options" class="anchor" role="button"></a>Additional Options</h2>
+<p>Let&rsquo;s dig deeper into some more options we'll consider when implementing a Delete operation.</p>
+<h3>Hard and Soft Delete</h3>
+<p>So what does it mean to delete a Cash Card from a database&rsquo;s point of view? Similar to how we decided that our Update operation means &rdquo;replace the entire existing record&rdquo; (as opposed to supporting partial update), we need to decide what happens to resources when they are deleted.</p>
+<p>A simple option, called <strong>hard delete</strong>, is to delete the record from the database. With a hard delete, it&rsquo;s gone forever. So what can we do if we need data that existed prior to its deletion?</p>
+<p>An alternative is <strong>soft delete</strong> which works by marking records as "deleted" in the database (so that they are retained, but marked as deleted). For example, we can introduce an <code>IS_DELETED</code> boolean or a <code>DELETED_DATE</code> timestamp column and then set that value-instead of fully removing the record by deleting the database row(s). With a soft delete, we also need to change how Repositories interact with the database. For example, a repository needs to respect the &ldquo;deleted&rdquo; column and exclude records marked deleted from Read requests.</p>
+<h2 id="audit-trail-and-archiving" class="anchored"><a href="#audit-trail-and-archiving" class="anchor" role="button"></a>Audit Trail and Archiving</h2>
+<p>When working with databases, you&rsquo;ll find that there&rsquo;s often a requirement to keep a record of modifications to data records. For example:</p>
+<ul><li>A customer service representative might need to know <em>when</em> a customer deleted their Cash Card.</li>
+<li>There may be data retention compliance regulations which require deleted data to be retained for a certain period of time.</li>
+</ul><p>If the Cash Card is hard-deleted then we would need to store additional data to be able to answer this question. Let&rsquo;s discuss some ways to record historical information:</p>
+<ul><li><strong>Archive</strong> (move) the deleted data into a different location.</li>
+<li>Add <strong>audit fields</strong> to the record itself. For example, the <code>DELETED_DATE</code> column that we mentioned already. Additional audit fields can be added, for example <code>DELETED_BY_USER</code>. Again, this is not limited to Delete operations, but Create and Update also.</li>
+</ul><p>APIs which implement soft delete and audit fields can return the state of the object in the response, and the <code>200 OK</code> status code. So why did we choose to use 204 instead of 200? Because the <code>204 NO CONTENT</code> status implies that there is no body in the response.</p>
+<ul><li>Maintain an <strong>audit trail</strong>. The audit trail is a record of all important operations done to a record. It can contain not only Delete operations, but Create and Update as well.</li>
+</ul><p>The advantage of an audit trail over audit fields is that a trail records all events, whereas audit fields on the record capture only the most recent operation. An audit trail can be stored in a different database location, or even in log files.</p>
+<p>It&rsquo;s worth mentioning that a combination of several of the above strategies is possible. Here are some examples:</p>
+<ul><li>We could implement soft delete, and then have a separate process which hard-deletes or archives soft-deleted records after a certain time period, like once per year.</li>
+<li>We could implement hard delete, and archive the deleted records.</li>
+<li>In any of the above cases, we could keep an audit log of which operations happened when.</li>
+</ul><p>Finally, observe that even the simple specification that we&rsquo;ve chosen doesn&rsquo;t determine whether we implement hard or soft delete. It also doesn&rsquo;t determine whether we add audit fields or keep an audit trail. However, the fact that we chose to return <code>204 NO CONTENT</code> implies that soft-delete is not happening, since if it was, we&rsquo;d probably choose to return <code>200 OK</code> with the record in the body.</p>
+
+
+
+
+<!DOCTYPE html><html><head><link rel="stylesheet" href="/workshop/static/bootstrap/css/bootstrap.css"><link rel="stylesheet" href="/workshop/static/fontawesome/css/all.min.css"><link rel="stylesheet" href="/workshop/static/highlight.js/styles/default.css"><link rel="stylesheet" href="/workshop/static/styles/educates.css"><link rel="stylesheet" href="/workshop/static/styles/educates-markdown.css"><link rel="stylesheet" href="/workshop/static/theme/workshop-instructions.css"><link rel="shortcut icon" href="/workshop/static/images/favicon.ico"></head><body data-google-tracking-id="" data-clarity-tracking-id="" data-amplitude-tracking-id="" data-workshop-name="course-spring-brasb-bv8n4j" data-session-namespace="spring-academy-w09-s428" data-workshop-namespace="spring-academy-w09" data-training-portal="spring-academy" data-ingress-domain="acad-spr-prd3.labs.spring.academy" data-ingress-protocol="https" data-ingress-port-suffix="" data-prev-page="01-overview" data-current-page="02-test-happy-path" data-next-page="03-implement-delete" data-page-format="markdown" data-page-step="2" data-pages-total="8"><div class="header page-navbar sticky-top bg-primary"><div class="row row-no-gutters"><div class="col-sm-12"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" type="button" data-goto-page="/" aria-label="Home"><span class="fas fa-home fa-inverse" aria-hidden="true"></span></button></div><div class="btn-toolbar float-right" role="toolbar"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" id="header-prev-page" type="button" data-goto-page="01-overview" disabled="" aria-label="Prev"><span class="fas fa-arrow-left fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-goto-toc" type="button" aria-label="TOC" data-toggle="modal" data-target="#table-of-contents"><span class="fas fa-list fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-next-page" type="button" data-goto-page="03-implement-delete" disabled="" aria-label="Next"><span class="fas fa-arrow-right fa-inverse" aria-hidden="true"></span></button></div></div></div></div></div><div class="container-fluid main-content"><div class="row"><div class="col-sm-12"><section class="page-content"><h1 class="title">2: Test the Happy Path</h1><div class="rendered-content"><p>Let&#39;s start with the simplest happy path: successfully deleting a <code>CashCard</code> which exists.</p>
+<p>We need the Delete endpoint to return the <code>204 NO CONTENT</code> status code.</p>
+<ol>
+<li><p>Write the test.</p>
+<p>Add the following method to <code>src/test/java/example/cashcard/CashCardApplicationTests.java</code>:</p>
+<pre><code class="hljs language-java"><span class="hljs-meta">@Test</span>
+<span class="hljs-meta">@DirtiesContext</span>
+<span class="hljs-keyword">void</span> <span class="hljs-title function_">shouldDeleteAnExistingCashCard</span><span class="hljs-params">()</span> {
+    ResponseEntity&lt;Void&gt; response = restTemplate
+            .withBasicAuth(<span class="hljs-string">&quot;sarah1&quot;</span>, <span class="hljs-string">&quot;abc123&quot;</span>)
+            .exchange(<span class="hljs-string">&quot;/cashcards/99&quot;</span>, HttpMethod.DELETE, <span class="hljs-literal">null</span>, Void.class);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+}
+</code></pre>
+<p>Notice that we&#39;ve added the <code>@DirtiesContext</code> annotation. We&#39;ll add this annotation to all tests which change the data. If we don&#39;t, then these tests could affect the result of other tests in the file.</p>
+<h3 id="why-not-use-resttemplatedelete">Why not use <code>RestTemplate.delete()</code>?</h3>
+<p>Notice that we&#39;re using <code>RestTemplate.exchange()</code> even though <code>RestTemplate</code> supplies a method that looks like we could use: <code>RestTemplate.delete()</code>. However, let&#39;s look at the signature:</p>
+<pre><code class="hljs language-java"><span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">RestTemplate</span> ... {
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">delete</span><span class="hljs-params">(String url, Object... uriVariables)</span>
+</code></pre>
+<p>The other methods we&#39;ve been using (such as <code>getForEntity()</code> and <code>exchange()</code>) return a <code>ResponseEntity</code>, but <code>delete()</code> does not. Instead, it&#39;s a <code>void</code> method. Why is this?</p>
+<p>The Spring Web framework supplies the <code>delete()</code> method as a convenience, but it comes with some assumptions:</p>
+<ol>
+<li>A response to a <code>DELETE</code> request will have no body.</li>
+<li>The client shouldn&#39;t care what the response code is unless it&#39;s an error, in which case, it&#39;ll throw an exception.</li>
+</ol>
+<p>Given those assumptions, no return value is needed from <code>delete()</code>.</p>
+<p>But the second assumption makes <code>delete()</code> unsuitable for us: We need the <code>ResponseEntity</code> in order to assert on the status code! So we won&#39;t use the convenience method, but rather let&#39;s use the more general method: <code>exchange()</code>.</p>
+</li>
+<li><p>Run the tests.</p>
+<p>As always, we use <code>./gradlew test</code> to run the tests.</p>
+<pre><code class="hljs language-console">[~/exercises] $ ./gradlew test
+...
+CashCardApplicationTests &gt; shouldDeleteAnExistingCashcard() FAILED
+    org.opentest4j.AssertionFailedError:
+    expected: 204 NO_CONTENT
+    but was: 403 FORBIDDEN
+</code></pre>
+<p>The test failed because the <code>DELETE /cashcards/99</code> request returned a <code>403 FORBIDDEN</code>.</p>
+<p>At this point you probably expected this result: Spring Security returns a <code>403</code> response for any endpoint which is not mapped.</p>
+<p>We need to implement the Controller method! So let&#39;s do it.</p>
+</li>
+<li><p>Implement the Delete endpoint in the Controller.</p>
+<p>Add the following method to the <code>CashCardController</code> class:</p>
+<pre><code class="hljs language-java"><span class="hljs-meta">@DeleteMapping(&quot;/{id}&quot;)</span>
+<span class="hljs-keyword">private</span> ResponseEntity&lt;Void&gt; <span class="hljs-title function_">deleteCashCard</span><span class="hljs-params">(<span class="hljs-meta">@PathVariable</span> Long id)</span> {
+    <span class="hljs-keyword">return</span> ResponseEntity.noContent().build();
+}
+</code></pre>
+<p>Run the tests. They pass!</p>
+<p>So are we done? Not yet!</p>
+<p>We haven&#39;t written the code to actually <em>delete</em> the item. Let&#39;s do that next.</p>
+<p>We write the test first, of course.</p>
+</li>
+<li><p>Test that we&#39;re actually deleting the <code>CashCard</code>.</p>
+<p>Add the following assertions to the <code>shouldDeleteAnExistingCashcard()</code> method:</p>
+<pre><code class="hljs language-java"><span class="hljs-keyword">void</span> <span class="hljs-title function_">shouldDeleteAnExistingCashCard</span><span class="hljs-params">()</span> {
+    ResponseEntity&lt;Void&gt; response = restTemplate
+            .withBasicAuth(<span class="hljs-string">&quot;sarah1&quot;</span>, <span class="hljs-string">&quot;abc123&quot;</span>)
+            .exchange(<span class="hljs-string">&quot;/cashcards/99&quot;</span>, HttpMethod.DELETE, <span class="hljs-literal">null</span>, Void.class);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+    <span class="hljs-comment">// Add the following code:</span>
+    ResponseEntity&lt;String&gt; getResponse = restTemplate
+            .withBasicAuth(<span class="hljs-string">&quot;sarah1&quot;</span>, <span class="hljs-string">&quot;abc123&quot;</span>)
+            .getForEntity(<span class="hljs-string">&quot;/cashcards/99&quot;</span>, String.class);
+    assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+}
+</code></pre>
+</li>
+<li><p>Understand the test code.</p>
+<p>We want to test that the deleted Cash Card is actually deleted, so we try to <code>GET</code> it, and assert that the result code is <code>404 NOT FOUND</code>.</p>
+<p>Run the test. Does it pass? Of course not!</p>
+<pre><code class="hljs language-console">CashCardApplicationTests &gt; shouldDeleteAnExistingCashcard() FAILED
+    org.opentest4j.AssertionFailedError:
+    expected: 404 NOT_FOUND
+    but was: 200 OK
+</code></pre>
+<p>What do we need to do to make the test pass? Write some code to delete the record!</p>
+<p>Let&#39;s go.</p>
+</li>
+</ol>
+</div><div class="page-meta clearfix"><button class="btn btn-lg btn-primary float-right" id="next-page" type="button" data-next-page="03-implement-delete" data-restart-url="https://spring-academy-ui.acad-spr-prd3.labs.spring.academy/workshops/session/spring-academy-w09-s428/delete/" aria-label="Continue">Continue</button></div></section></div></div></div><div class="modal fade" id="table-of-contents" tabindex="-1" role="dialog" aria-labelledby="table-of-contents-title" aria-hidden="true"><div class="modal-dialog" role="document"><div class="modal-content"><div class="modal-header"><h5 id="table-of-contents-title">Lesson</h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body"><ul class="menu"><li class="category"><ul class="modules"><li class="page"><a href="/workshop/content/01-overview">1: Overview</a></li><li class="page active"><a href="/workshop/content/02-test-happy-path">2: Test the Happy Path</a></li><li class="page"><a href="/workshop/content/03-implement-delete">3: Implement the DELETE Endpoint</a></li><li class="page"><a href="/workshop/content/04-doesnt-exist">4: Test case: The Cash Card doesn't exist</a></li><li class="page"><a href="/workshop/content/05-enforce-ownership">5: Enforce Ownership</a></li><li class="page"><a href="/workshop/content/06-refactor">6: Refactor</a></li><li class="page"><a href="/workshop/content/07-hide-unauthorized">7: Hide Unauthorized Records</a></li><li class="page"><a href="/workshop/content/08-summary">8: Summary</a></li></ul></li></ul></div><div class="modal-footer"><button class="btn btn-primary" type="button" data-dismiss="modal">Close</button></div></div></div></div><div class="modal fade" id="preview-image-dialog" role="dialog"><div class="modal-dialog modal-dialog-centered" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="preview-image-title"></h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body preview-image-body"><img class="img-fluid" id="preview-image-element"></div><div class="modal-footer"><button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button></div></div></div></div><script src="/workshop/static/scripts/educates-bundle.min.js"></script><script src="/workshop/static/theme/workshop-instructions.js"></script></body></html>
+
+
+
+
+<!DOCTYPE html><html><head><link rel="stylesheet" href="/workshop/static/bootstrap/css/bootstrap.css"><link rel="stylesheet" href="/workshop/static/fontawesome/css/all.min.css"><link rel="stylesheet" href="/workshop/static/highlight.js/styles/default.css"><link rel="stylesheet" href="/workshop/static/styles/educates.css"><link rel="stylesheet" href="/workshop/static/styles/educates-markdown.css"><link rel="stylesheet" href="/workshop/static/theme/workshop-instructions.css"><link rel="shortcut icon" href="/workshop/static/images/favicon.ico"></head><body data-google-tracking-id="" data-clarity-tracking-id="" data-amplitude-tracking-id="" data-workshop-name="course-spring-brasb-bv8n4j" data-session-namespace="spring-academy-w09-s428" data-workshop-namespace="spring-academy-w09" data-training-portal="spring-academy" data-ingress-domain="acad-spr-prd3.labs.spring.academy" data-ingress-protocol="https" data-ingress-port-suffix="" data-prev-page="02-test-happy-path" data-current-page="03-implement-delete" data-next-page="04-doesnt-exist" data-page-format="markdown" data-page-step="3" data-pages-total="8"><div class="header page-navbar sticky-top bg-primary"><div class="row row-no-gutters"><div class="col-sm-12"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" type="button" data-goto-page="/" aria-label="Home"><span class="fas fa-home fa-inverse" aria-hidden="true"></span></button></div><div class="btn-toolbar float-right" role="toolbar"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" id="header-prev-page" type="button" data-goto-page="02-test-happy-path" disabled="" aria-label="Prev"><span class="fas fa-arrow-left fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-goto-toc" type="button" aria-label="TOC" data-toggle="modal" data-target="#table-of-contents"><span class="fas fa-list fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-next-page" type="button" data-goto-page="04-doesnt-exist" disabled="" aria-label="Next"><span class="fas fa-arrow-right fa-inverse" aria-hidden="true"></span></button></div></div></div></div></div><div class="container-fluid main-content"><div class="row"><div class="col-sm-12"><section class="page-content"><h1 class="title">3: Implement the DELETE Endpoint</h1><div class="rendered-content"><p>Now we need to write a Controller method which will be called when we send a <code>DELETE</code> request with the proper URI.</p>
+<ol>
+<li><p>Add code to the Controller to delete the record.</p>
+<p>Change the <code>CashCardController.deleteCashCard()</code> method:</p>
+<pre><code class="hljs language-java"><span class="hljs-meta">@DeleteMapping(&quot;/{id}&quot;)</span>
+<span class="hljs-keyword">private</span> ResponseEntity&lt;Void&gt; <span class="hljs-title function_">deleteCashCard</span><span class="hljs-params">(<span class="hljs-meta">@PathVariable</span> Long id)</span> {
+    cashCardRepository.deleteById(id); <span class="hljs-comment">// Add this line</span>
+    <span class="hljs-keyword">return</span> ResponseEntity.noContent().build();
+}
+</code></pre>
+<p>The change is straightforward: </p>
+<ul>
+<li>We use the <code>@DeleteMapping</code> with the <code>&quot;{id}&quot;</code> parameter, which Spring Web matches to the <code>id</code> method parameter.</li>
+<li><code>CashCardRepository</code> already has the method we need: <code>deleteById()</code> (it&#39;s inherited from <code>CrudRepository</code>).</li>
+</ul>
+<p>Run the tests, and watch them pass!</p>
+</li>
+</ol>
+<p>Great, what to do next?</p>
+</div><div class="page-meta clearfix"><button class="btn btn-lg btn-primary float-right" id="next-page" type="button" data-next-page="04-doesnt-exist" data-restart-url="https://spring-academy-ui.acad-spr-prd3.labs.spring.academy/workshops/session/spring-academy-w09-s428/delete/" aria-label="Continue">Continue</button></div></section></div></div></div><div class="modal fade" id="table-of-contents" tabindex="-1" role="dialog" aria-labelledby="table-of-contents-title" aria-hidden="true"><div class="modal-dialog" role="document"><div class="modal-content"><div class="modal-header"><h5 id="table-of-contents-title">Lesson</h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body"><ul class="menu"><li class="category"><ul class="modules"><li class="page"><a href="/workshop/content/01-overview">1: Overview</a></li><li class="page"><a href="/workshop/content/02-test-happy-path">2: Test the Happy Path</a></li><li class="page active"><a href="/workshop/content/03-implement-delete">3: Implement the DELETE Endpoint</a></li><li class="page"><a href="/workshop/content/04-doesnt-exist">4: Test case: The Cash Card doesn't exist</a></li><li class="page"><a href="/workshop/content/05-enforce-ownership">5: Enforce Ownership</a></li><li class="page"><a href="/workshop/content/06-refactor">6: Refactor</a></li><li class="page"><a href="/workshop/content/07-hide-unauthorized">7: Hide Unauthorized Records</a></li><li class="page"><a href="/workshop/content/08-summary">8: Summary</a></li></ul></li></ul></div><div class="modal-footer"><button class="btn btn-primary" type="button" data-dismiss="modal">Close</button></div></div></div></div><div class="modal fade" id="preview-image-dialog" role="dialog"><div class="modal-dialog modal-dialog-centered" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="preview-image-title"></h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body preview-image-body"><img class="img-fluid" id="preview-image-element"></div><div class="modal-footer"><button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button></div></div></div></div><script src="/workshop/static/scripts/educates-bundle.min.js"></script><script src="/workshop/static/theme/workshop-instructions.js"></script></body></html>
+
+
+
+
+<!DOCTYPE html><html><head><link rel="stylesheet" href="/workshop/static/bootstrap/css/bootstrap.css"><link rel="stylesheet" href="/workshop/static/fontawesome/css/all.min.css"><link rel="stylesheet" href="/workshop/static/highlight.js/styles/default.css"><link rel="stylesheet" href="/workshop/static/styles/educates.css"><link rel="stylesheet" href="/workshop/static/styles/educates-markdown.css"><link rel="stylesheet" href="/workshop/static/theme/workshop-instructions.css"><link rel="shortcut icon" href="/workshop/static/images/favicon.ico"></head><body data-google-tracking-id="" data-clarity-tracking-id="" data-amplitude-tracking-id="" data-workshop-name="course-spring-brasb-bv8n4j" data-session-namespace="spring-academy-w09-s428" data-workshop-namespace="spring-academy-w09" data-training-portal="spring-academy" data-ingress-domain="acad-spr-prd3.labs.spring.academy" data-ingress-protocol="https" data-ingress-port-suffix="" data-prev-page="03-implement-delete" data-current-page="04-doesnt-exist" data-next-page="05-enforce-ownership" data-page-format="markdown" data-page-step="4" data-pages-total="8"><div class="header page-navbar sticky-top bg-primary"><div class="row row-no-gutters"><div class="col-sm-12"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" type="button" data-goto-page="/" aria-label="Home"><span class="fas fa-home fa-inverse" aria-hidden="true"></span></button></div><div class="btn-toolbar float-right" role="toolbar"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" id="header-prev-page" type="button" data-goto-page="03-implement-delete" disabled="" aria-label="Prev"><span class="fas fa-arrow-left fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-goto-toc" type="button" aria-label="TOC" data-toggle="modal" data-target="#table-of-contents"><span class="fas fa-list fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-next-page" type="button" data-goto-page="05-enforce-ownership" disabled="" aria-label="Next"><span class="fas fa-arrow-right fa-inverse" aria-hidden="true"></span></button></div></div></div></div></div><div class="container-fluid main-content"><div class="row"><div class="col-sm-12"><section class="page-content"><h1 class="title">4: Test case: The Cash Card doesn't exist</h1><div class="rendered-content"><p>Our contract states that we should return <code>404 NOT FOUND</code> if we try to delete a card that doesn&#39;t exist.</p>
+<ol>
+<li><p>Write the test.</p>
+<p>Add the following test method to <code>CashCardApplicationTests</code>:</p>
+<pre><code class="hljs language-java"><span class="hljs-meta">@Test</span>
+<span class="hljs-keyword">void</span> <span class="hljs-title function_">shouldNotDeleteACashCardThatDoesNotExist</span><span class="hljs-params">()</span> {
+    ResponseEntity&lt;Void&gt; deleteResponse = restTemplate
+            .withBasicAuth(<span class="hljs-string">&quot;sarah1&quot;</span>, <span class="hljs-string">&quot;abc123&quot;</span>)
+            .exchange(<span class="hljs-string">&quot;/cashcards/99999&quot;</span>, HttpMethod.DELETE, <span class="hljs-literal">null</span>, Void.class);
+    assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+}
+</code></pre>
+</li>
+<li><p>Run the tests.</p>
+<pre><code class="hljs language-console">CashCardApplicationTests &gt; shouldNotDeleteACashCardThatDoesNotExist() FAILED
+    org.opentest4j.AssertionFailedError:
+    expected: 404 NOT_FOUND
+    but was: 204 NO_CONTENT
+</code></pre>
+<p>No surprise here&mdash;we need to enforce the security of our app by checking that the user trying to delete a card is the owner. Spring Security does a lot of things for us, but this is not one of them.</p>
+</li>
+</ol>
+</div><div class="page-meta clearfix"><button class="btn btn-lg btn-primary float-right" id="next-page" type="button" data-next-page="05-enforce-ownership" data-restart-url="https://spring-academy-ui.acad-spr-prd3.labs.spring.academy/workshops/session/spring-academy-w09-s428/delete/" aria-label="Continue">Continue</button></div></section></div></div></div><div class="modal fade" id="table-of-contents" tabindex="-1" role="dialog" aria-labelledby="table-of-contents-title" aria-hidden="true"><div class="modal-dialog" role="document"><div class="modal-content"><div class="modal-header"><h5 id="table-of-contents-title">Lesson</h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body"><ul class="menu"><li class="category"><ul class="modules"><li class="page"><a href="/workshop/content/01-overview">1: Overview</a></li><li class="page"><a href="/workshop/content/02-test-happy-path">2: Test the Happy Path</a></li><li class="page"><a href="/workshop/content/03-implement-delete">3: Implement the DELETE Endpoint</a></li><li class="page active"><a href="/workshop/content/04-doesnt-exist">4: Test case: The Cash Card doesn't exist</a></li><li class="page"><a href="/workshop/content/05-enforce-ownership">5: Enforce Ownership</a></li><li class="page"><a href="/workshop/content/06-refactor">6: Refactor</a></li><li class="page"><a href="/workshop/content/07-hide-unauthorized">7: Hide Unauthorized Records</a></li><li class="page"><a href="/workshop/content/08-summary">8: Summary</a></li></ul></li></ul></div><div class="modal-footer"><button class="btn btn-primary" type="button" data-dismiss="modal">Close</button></div></div></div></div><div class="modal fade" id="preview-image-dialog" role="dialog"><div class="modal-dialog modal-dialog-centered" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="preview-image-title"></h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body preview-image-body"><img class="img-fluid" id="preview-image-element"></div><div class="modal-footer"><button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button></div></div></div></div><script src="/workshop/static/scripts/educates-bundle.min.js"></script><script src="/workshop/static/theme/workshop-instructions.js"></script></body></html>
+
+
+
+<!DOCTYPE html><html><head><link rel="stylesheet" href="/workshop/static/bootstrap/css/bootstrap.css"><link rel="stylesheet" href="/workshop/static/fontawesome/css/all.min.css"><link rel="stylesheet" href="/workshop/static/highlight.js/styles/default.css"><link rel="stylesheet" href="/workshop/static/styles/educates.css"><link rel="stylesheet" href="/workshop/static/styles/educates-markdown.css"><link rel="stylesheet" href="/workshop/static/theme/workshop-instructions.css"><link rel="shortcut icon" href="/workshop/static/images/favicon.ico"></head><body data-google-tracking-id="" data-clarity-tracking-id="" data-amplitude-tracking-id="" data-workshop-name="course-spring-brasb-bv8n4j" data-session-namespace="spring-academy-w09-s428" data-workshop-namespace="spring-academy-w09" data-training-portal="spring-academy" data-ingress-domain="acad-spr-prd3.labs.spring.academy" data-ingress-protocol="https" data-ingress-port-suffix="" data-prev-page="04-doesnt-exist" data-current-page="05-enforce-ownership" data-next-page="06-refactor" data-page-format="markdown" data-page-step="5" data-pages-total="8"><div class="header page-navbar sticky-top bg-primary"><div class="row row-no-gutters"><div class="col-sm-12"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" type="button" data-goto-page="/" aria-label="Home"><span class="fas fa-home fa-inverse" aria-hidden="true"></span></button></div><div class="btn-toolbar float-right" role="toolbar"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" id="header-prev-page" type="button" data-goto-page="04-doesnt-exist" disabled="" aria-label="Prev"><span class="fas fa-arrow-left fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-goto-toc" type="button" aria-label="TOC" data-toggle="modal" data-target="#table-of-contents"><span class="fas fa-list fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-next-page" type="button" data-goto-page="06-refactor" disabled="" aria-label="Next"><span class="fas fa-arrow-right fa-inverse" aria-hidden="true"></span></button></div></div></div></div></div><div class="container-fluid main-content"><div class="row"><div class="col-sm-12"><section class="page-content"><h1 class="title">5: Enforce Ownership</h1><div class="rendered-content"><p>We need to check whether the record exists. If not, we should <em>not</em> delete the Cash Card, and return <code>404 NOT FOUND</code>.</p>
+<ol>
+<li><p>Make the following changes to <code>CashCardController.deleteCashCard</code>:</p>
+<pre><code class="hljs language-java"><span class="hljs-keyword">private</span> ResponseEntity&lt;Void&gt; <span class="hljs-title function_">deleteCashCard</span><span class="hljs-params">(
+        <span class="hljs-meta">@PathVariable</span> Long id,
+        Principal principal // Add Principal to the parameter list
+    )</span> {
+    <span class="hljs-comment">// Add the following 3 lines:</span>
+    <span class="hljs-keyword">if</span> (!cashCardRepository.existsByIdAndOwner(id, principal.getName())) {
+        <span class="hljs-keyword">return</span> ResponseEntity.notFound().build();
+    }
+...
+}
+</code></pre>
+<p>Let&#39;s be sure to the add the <code>Principal</code> parameter!</p>
+<p>We&#39;re using the Principal in order to check whether the Cash Card exists, <em>and</em> at the same time, enforce ownership.</p>
+</li>
+<li><p>Add the <code>existsByIdAndOwner()</code> method to the Repository.</p>
+<p>Also, let&#39;s add the new method <code>existsByIdAndOwner()</code> to <code>CashCardRepository</code>:</p>
+<pre><code class="hljs language-java"><span class="hljs-keyword">public</span> <span class="hljs-keyword">interface</span> <span class="hljs-title class_">CashCardRepository</span> <span class="hljs-keyword">extends</span> <span class="hljs-title class_">CrudRepository</span>&lt;CashCard, Long&gt;, PagingAndSortingRepository&lt;CashCard, Long&gt; {
+    ...
+    <span class="hljs-type">boolean</span> <span class="hljs-title function_">existsByIdAndOwner</span><span class="hljs-params">(Long id, String owner)</span>;
+    ...
+}
+</code></pre>
+</li>
+<li><p>Understand the Repository code.</p>
+<p>We added logic to the Controller method to check whether the Cash Card ID in the request actually exists in the database. The method we&#39;ll use is <code>CashCardRepository.existsByIdAndOwner(id, username)</code>.</p>
+<p>This is another case where Spring Data will generate the implementation of this method as long as we add it to the Repository.</p>
+<p>So why not just use the <code>findByIdAndOwner()</code> method and check whether it returns <code>null</code>? We could absolutely do that! But, such a call would return extra information (the content of the Cash Card retrieved), so we&#39;d like to avoid it as to not introduce extra complexity.</p>
+<p>If you&#39;d rather not use the <code>existsByIdAndOwner()</code> method, that&#39;s ok! You may choose to use <code>findByIdAndOwner()</code>. The test result will be the same!</p>
+</li>
+<li><p>Watch the test pass.</p>
+<p>Let&#39;s run the test and, no big surprise, the test passes!</p>
+<pre><code class="hljs language-shell">[~/exercises] $ ./gradlew test
+...
+BUILD SUCCESSFUL in 8s
+</code></pre>
+</li>
+</ol>
+</div><div class="page-meta clearfix"><button class="btn btn-lg btn-primary float-right" id="next-page" type="button" data-next-page="06-refactor" data-restart-url="https://spring-academy-ui.acad-spr-prd3.labs.spring.academy/workshops/session/spring-academy-w09-s428/delete/" aria-label="Continue">Continue</button></div></section></div></div></div><div class="modal fade" id="table-of-contents" tabindex="-1" role="dialog" aria-labelledby="table-of-contents-title" aria-hidden="true"><div class="modal-dialog" role="document"><div class="modal-content"><div class="modal-header"><h5 id="table-of-contents-title">Lesson</h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body"><ul class="menu"><li class="category"><ul class="modules"><li class="page"><a href="/workshop/content/01-overview">1: Overview</a></li><li class="page"><a href="/workshop/content/02-test-happy-path">2: Test the Happy Path</a></li><li class="page"><a href="/workshop/content/03-implement-delete">3: Implement the DELETE Endpoint</a></li><li class="page"><a href="/workshop/content/04-doesnt-exist">4: Test case: The Cash Card doesn't exist</a></li><li class="page active"><a href="/workshop/content/05-enforce-ownership">5: Enforce Ownership</a></li><li class="page"><a href="/workshop/content/06-refactor">6: Refactor</a></li><li class="page"><a href="/workshop/content/07-hide-unauthorized">7: Hide Unauthorized Records</a></li><li class="page"><a href="/workshop/content/08-summary">8: Summary</a></li></ul></li></ul></div><div class="modal-footer"><button class="btn btn-primary" type="button" data-dismiss="modal">Close</button></div></div></div></div><div class="modal fade" id="preview-image-dialog" role="dialog"><div class="modal-dialog modal-dialog-centered" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="preview-image-title"></h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body preview-image-body"><img class="img-fluid" id="preview-image-element"></div><div class="modal-footer"><button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button></div></div></div></div><script src="/workshop/static/scripts/educates-bundle.min.js"></script><script src="/workshop/static/theme/workshop-instructions.js"></script></body></html>
+
+
+
+
+<!DOCTYPE html><html><head><link rel="stylesheet" href="/workshop/static/bootstrap/css/bootstrap.css"><link rel="stylesheet" href="/workshop/static/fontawesome/css/all.min.css"><link rel="stylesheet" href="/workshop/static/highlight.js/styles/default.css"><link rel="stylesheet" href="/workshop/static/styles/educates.css"><link rel="stylesheet" href="/workshop/static/styles/educates-markdown.css"><link rel="stylesheet" href="/workshop/static/theme/workshop-instructions.css"><link rel="shortcut icon" href="/workshop/static/images/favicon.ico"></head><body data-google-tracking-id="" data-clarity-tracking-id="" data-amplitude-tracking-id="" data-workshop-name="course-spring-brasb-bv8n4j" data-session-namespace="spring-academy-w09-s428" data-workshop-namespace="spring-academy-w09" data-training-portal="spring-academy" data-ingress-domain="acad-spr-prd3.labs.spring.academy" data-ingress-protocol="https" data-ingress-port-suffix="" data-prev-page="05-enforce-ownership" data-current-page="06-refactor" data-next-page="07-hide-unauthorized" data-page-format="markdown" data-page-step="6" data-pages-total="8"><div class="header page-navbar sticky-top bg-primary"><div class="row row-no-gutters"><div class="col-sm-12"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" type="button" data-goto-page="/" aria-label="Home"><span class="fas fa-home fa-inverse" aria-hidden="true"></span></button></div><div class="btn-toolbar float-right" role="toolbar"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" id="header-prev-page" type="button" data-goto-page="05-enforce-ownership" disabled="" aria-label="Prev"><span class="fas fa-arrow-left fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-goto-toc" type="button" aria-label="TOC" data-toggle="modal" data-target="#table-of-contents"><span class="fas fa-list fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-next-page" type="button" data-goto-page="07-hide-unauthorized" disabled="" aria-label="Next"><span class="fas fa-arrow-right fa-inverse" aria-hidden="true"></span></button></div></div></div></div></div><div class="container-fluid main-content"><div class="row"><div class="col-sm-12"><section class="page-content"><h1 class="title">6: Refactor</h1><div class="rendered-content"><p>At this point, we have an opportunity to practice the <em>Red, Green, Refactor</em> process. We&#39;ve already done <em>Red</em> (the failing test), and <em>Green</em> (the passing test). Now we can ask ourselves, should we <em>Refactor</em> anything?</p>
+<p>Here&#39;s the body of our <code>CashCardController.deleteCashCard</code> method:</p>
+<pre><code class="hljs language-java"><span class="hljs-keyword">if</span> (!cashCardRepository.existsByIdAndOwner(id, principal.getName())) {
+    <span class="hljs-keyword">return</span> ResponseEntity.notFound().build();
+}
+cashCardRepository.deleteById(id);
+<span class="hljs-keyword">return</span> ResponseEntity.noContent().build();
+</code></pre>
+<p>You might find the following version, which is logically equivalent but slightly simpler, to be easier to read:</p>
+<pre><code class="hljs language-java"><span class="hljs-keyword">if</span> (cashCardRepository.existsByIdAndOwner(id, principal.getName())) {
+    cashCardRepository.deleteById(id);
+    <span class="hljs-keyword">return</span> ResponseEntity.noContent().build();
+}
+<span class="hljs-keyword">return</span> ResponseEntity.notFound().build();
+</code></pre>
+<p>The differences are slight, but removing a not-operator (<code>!</code>) from an <code>if</code> statement often makes for easier-to-read code, and <em>readability is important</em>! </p>
+<p>If you do find the second version easier to read and understand, then replace the existing code with the new version.</p>
+<p>Run the tests again. They still pass!</p>
+<pre><code class="hljs language-shell">[~/exercises] $ ./gradlew test
+...
+BUILD SUCCESSFUL in 8s
+</code></pre>
+</div><div class="page-meta clearfix"><button class="btn btn-lg btn-primary float-right" id="next-page" type="button" data-next-page="07-hide-unauthorized" data-restart-url="https://spring-academy-ui.acad-spr-prd3.labs.spring.academy/workshops/session/spring-academy-w09-s428/delete/" aria-label="Continue">Continue</button></div></section></div></div></div><div class="modal fade" id="table-of-contents" tabindex="-1" role="dialog" aria-labelledby="table-of-contents-title" aria-hidden="true"><div class="modal-dialog" role="document"><div class="modal-content"><div class="modal-header"><h5 id="table-of-contents-title">Lesson</h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body"><ul class="menu"><li class="category"><ul class="modules"><li class="page"><a href="/workshop/content/01-overview">1: Overview</a></li><li class="page"><a href="/workshop/content/02-test-happy-path">2: Test the Happy Path</a></li><li class="page"><a href="/workshop/content/03-implement-delete">3: Implement the DELETE Endpoint</a></li><li class="page"><a href="/workshop/content/04-doesnt-exist">4: Test case: The Cash Card doesn't exist</a></li><li class="page"><a href="/workshop/content/05-enforce-ownership">5: Enforce Ownership</a></li><li class="page active"><a href="/workshop/content/06-refactor">6: Refactor</a></li><li class="page"><a href="/workshop/content/07-hide-unauthorized">7: Hide Unauthorized Records</a></li><li class="page"><a href="/workshop/content/08-summary">8: Summary</a></li></ul></li></ul></div><div class="modal-footer"><button class="btn btn-primary" type="button" data-dismiss="modal">Close</button></div></div></div></div><div class="modal fade" id="preview-image-dialog" role="dialog"><div class="modal-dialog modal-dialog-centered" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="preview-image-title"></h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body preview-image-body"><img class="img-fluid" id="preview-image-element"></div><div class="modal-footer"><button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button></div></div></div></div><script src="/workshop/static/scripts/educates-bundle.min.js"></script><script src="/workshop/static/theme/workshop-instructions.js"></script></body></html>
+
+
+
+<!DOCTYPE html><html><head><link rel="stylesheet" href="/workshop/static/bootstrap/css/bootstrap.css"><link rel="stylesheet" href="/workshop/static/fontawesome/css/all.min.css"><link rel="stylesheet" href="/workshop/static/highlight.js/styles/default.css"><link rel="stylesheet" href="/workshop/static/styles/educates.css"><link rel="stylesheet" href="/workshop/static/styles/educates-markdown.css"><link rel="stylesheet" href="/workshop/static/theme/workshop-instructions.css"><link rel="shortcut icon" href="/workshop/static/images/favicon.ico"></head><body data-google-tracking-id="" data-clarity-tracking-id="" data-amplitude-tracking-id="" data-workshop-name="course-spring-brasb-bv8n4j" data-session-namespace="spring-academy-w09-s428" data-workshop-namespace="spring-academy-w09" data-training-portal="spring-academy" data-ingress-domain="acad-spr-prd3.labs.spring.academy" data-ingress-protocol="https" data-ingress-port-suffix="" data-prev-page="06-refactor" data-current-page="07-hide-unauthorized" data-next-page="08-summary" data-page-format="markdown" data-page-step="7" data-pages-total="8"><div class="header page-navbar sticky-top bg-primary"><div class="row row-no-gutters"><div class="col-sm-12"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" type="button" data-goto-page="/" aria-label="Home"><span class="fas fa-home fa-inverse" aria-hidden="true"></span></button></div><div class="btn-toolbar float-right" role="toolbar"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" id="header-prev-page" type="button" data-goto-page="06-refactor" disabled="" aria-label="Prev"><span class="fas fa-arrow-left fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-goto-toc" type="button" aria-label="TOC" data-toggle="modal" data-target="#table-of-contents"><span class="fas fa-list fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-next-page" type="button" data-goto-page="08-summary" disabled="" aria-label="Next"><span class="fas fa-arrow-right fa-inverse" aria-hidden="true"></span></button></div></div></div></div></div><div class="container-fluid main-content"><div class="row"><div class="col-sm-12"><section class="page-content"><h1 class="title">7: Hide Unauthorized Records</h1><div class="rendered-content"><p>At this point, you may ask yourself, &quot;Are we done?&quot; You are the best person to answer that question! If you want, take a couple minutes to refresh yourself with the accompanying lesson in order to see if we&#39;ve tested and implemented every aspect of the API contract for DELETE.</p>
+<p>OK, that was time well-spent, wasn&#39;t it? That&#39;s right - There is one more case that we have yet to test: What if the user attempts to delete a Cash Card owned by someone else? We decided in the associated lesson that the response should be <code>404 NOT FOUND</code> in this case. Thats enough information for us to write a test for that case:</p>
+<ol>
+<li><p>In <code>CashCardApplicationTests.java</code>, add the following test method at the end of the class:</p>
+<pre><code class="hljs language-java">    <span class="hljs-meta">@Test</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">shouldNotAllowDeletionOfCashCardsTheyDoNotOwn</span><span class="hljs-params">()</span> {
+        ResponseEntity&lt;Void&gt; deleteResponse = restTemplate
+                .withBasicAuth(<span class="hljs-string">&quot;sarah1&quot;</span>, <span class="hljs-string">&quot;abc123&quot;</span>)
+                .exchange(<span class="hljs-string">&quot;/cashcards/102&quot;</span>, HttpMethod.DELETE, <span class="hljs-literal">null</span>, Void.class);
+        assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+</code></pre>
+</li>
+<li><p>Run the test</p>
+<p>Do you think the test will pass? Take a moment to predict the outcome, then run the test.</p>
+<p>It passed! That&#39;s great news.</p>
+<ul>
+<li>We have written a test for a specific case in our API.</li>
+<li>The test passed without any code changes!</li>
+</ul>
+<p>Now let&#39;s consider a question which may have occurred to you: Why do I need that test, since it passes without having to make any code changes? Isn&#39;t the purpose of TDD to use tests to guide the implementation of the application? If that&#39;s the case, why did I bother to write that test?</p>
+<p>Answers:</p>
+<ul>
+<li>Yes, that is <em>one</em> of many benefits that TDD provides: A process to guide the creation of code in order to arrive at a desired outcome.</li>
+<li>Tests themselves, though, have another purpose, separate from TDD: Tests are a powerful safety net to enforce correctness. Since the test you just wrote tests a different case than those already written, it provides value. If someone were to make a code change which caused this new test to fail, then you will have caught the error before it became an issue! Yay for Tests.</li>
+</ul>
+</li>
+<li><p>One More Test</p>
+<p>But wait, you say. Shouldn&#39;t I test that the record that I tried to delete still exists in the database - that it didn&#39;t get deleted?
+Yes! That is a valid test. Thanks for mentioning it! Add the following code to the test method, to verify that the record you tried unsuccessfully to delete is still there:</p>
+<pre><code class="hljs language-java">    <span class="hljs-keyword">void</span> <span class="hljs-title function_">shouldNotAllowDeletionOfCashCardsTheyDoNotOwn</span><span class="hljs-params">()</span> {
+...
+        <span class="hljs-comment">// Add this code at the end of the test method:</span>
+        ResponseEntity&lt;String&gt; getResponse = restTemplate
+                .withBasicAuth(<span class="hljs-string">&quot;kumar2&quot;</span>, <span class="hljs-string">&quot;xyz789&quot;</span>)
+                .getForEntity(<span class="hljs-string">&quot;/cashcards/102&quot;</span>, String.class);
+        assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+</code></pre>
+<p>Do you think the test will pass? Of course it will! (right?)</p>
+</li>
+<li><p>Run the test</p>
+<p>Just to make sure ... Please run all the tests and ensure that they pass.</p>
+</li>
+</ol>
+</div><div class="page-meta clearfix"><button class="btn btn-lg btn-primary float-right" id="next-page" type="button" data-next-page="08-summary" data-restart-url="https://spring-academy-ui.acad-spr-prd3.labs.spring.academy/workshops/session/spring-academy-w09-s428/delete/" aria-label="Continue">Continue</button></div></section></div></div></div><div class="modal fade" id="table-of-contents" tabindex="-1" role="dialog" aria-labelledby="table-of-contents-title" aria-hidden="true"><div class="modal-dialog" role="document"><div class="modal-content"><div class="modal-header"><h5 id="table-of-contents-title">Lesson</h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body"><ul class="menu"><li class="category"><ul class="modules"><li class="page"><a href="/workshop/content/01-overview">1: Overview</a></li><li class="page"><a href="/workshop/content/02-test-happy-path">2: Test the Happy Path</a></li><li class="page"><a href="/workshop/content/03-implement-delete">3: Implement the DELETE Endpoint</a></li><li class="page"><a href="/workshop/content/04-doesnt-exist">4: Test case: The Cash Card doesn't exist</a></li><li class="page"><a href="/workshop/content/05-enforce-ownership">5: Enforce Ownership</a></li><li class="page"><a href="/workshop/content/06-refactor">6: Refactor</a></li><li class="page active"><a href="/workshop/content/07-hide-unauthorized">7: Hide Unauthorized Records</a></li><li class="page"><a href="/workshop/content/08-summary">8: Summary</a></li></ul></li></ul></div><div class="modal-footer"><button class="btn btn-primary" type="button" data-dismiss="modal">Close</button></div></div></div></div><div class="modal fade" id="preview-image-dialog" role="dialog"><div class="modal-dialog modal-dialog-centered" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="preview-image-title"></h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body preview-image-body"><img class="img-fluid" id="preview-image-element"></div><div class="modal-footer"><button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button></div></div></div></div><script src="/workshop/static/scripts/educates-bundle.min.js"></script><script src="/workshop/static/theme/workshop-instructions.js"></script></body></html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
