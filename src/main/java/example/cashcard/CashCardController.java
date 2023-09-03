@@ -69,4 +69,25 @@ public class CashCardController {
         return cashCardRepository.findByIdAndOwner(requestedId, principal.getName());
     }
 
+    @DeleteMapping("/{requestedId}")
+    public ResponseEntity<Void> deleteCashCard(@PathVariable Long requestedId, Principal principal) {
+        Boolean cashCardExists = cashCardRepository.existsByIdAndOwner(requestedId,principal.getName());
+        if (cashCardExists) {
+            cashCardRepository.deleteById(requestedId);
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    /*this not work #(forbitten ) because of the@RequestBody CashCard cashCardUpdate
+    * the delete method do not want a body, just the id */
+//    @DeleteMapping("/{requestedId}")
+//    public ResponseEntity<Void> deleteCashCard(@PathVariable Long requestedId, @RequestBody CashCard cashCardUpdate, Principal principal) {
+//        Boolean cashCardExists = cashCardRepository.existsByIdAndOwner(requestedId,principal.getName());
+//        if (cashCardExists) {
+//            cashCardRepository.deleteById(requestedId);
+//            return ResponseEntity.noContent().build();
+//        }
+//        return ResponseEntity.notFound().build();
+//    }
 }

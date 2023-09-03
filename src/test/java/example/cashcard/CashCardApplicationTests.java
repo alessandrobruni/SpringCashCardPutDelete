@@ -22,7 +22,24 @@ class CashCardApplicationTests {
     @Autowired
     TestRestTemplate restTemplate;
 
+    @Test
+    @DirtiesContext
+    void shouldDeleteExistingCashCard(){
+        ResponseEntity<Void> response = restTemplate
+                .withBasicAuth(CC_Properties.USER_SARA,"abc123")
+                .exchange(CC_Properties.ROOT_URI+"/100", HttpMethod.DELETE, null, Void.class) ;
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    }
 
+    @Test
+    @DirtiesContext
+    void shouldNotDeleteExistingCashCardNotOwned(){
+        ResponseEntity<Void> response = restTemplate
+                .withBasicAuth(CC_Properties.USER_KUMAR,"abc123")
+                .exchange(CC_Properties.ROOT_URI+"/100", HttpMethod.DELETE, null, Void.class) ;
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+    }
     @Test
     @DirtiesContext
     void shouldUpdateAnExistingCashCard() {
