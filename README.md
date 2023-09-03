@@ -57,4 +57,351 @@
 
 
 
+<!DOCTYPE html><html><head><link rel="stylesheet" href="/workshop/static/bootstrap/css/bootstrap.css"><link rel="stylesheet" href="/workshop/static/fontawesome/css/all.min.css"><link rel="stylesheet" href="/workshop/static/highlight.js/styles/default.css"><link rel="stylesheet" href="/workshop/static/styles/educates.css"><link rel="stylesheet" href="/workshop/static/styles/educates-markdown.css"><link rel="stylesheet" href="/workshop/static/theme/workshop-instructions.css"><link rel="shortcut icon" href="/workshop/static/images/favicon.ico"></head><body data-google-tracking-id="" data-clarity-tracking-id="" data-amplitude-tracking-id="" data-workshop-name="course-spring-brasb-oqvxew" data-session-namespace="spring-academy-w08-s450" data-workshop-namespace="spring-academy-w08" data-training-portal="spring-academy" data-ingress-domain="acad-spr-prd3.labs.spring.academy" data-ingress-protocol="https" data-ingress-port-suffix="" data-prev-page="01-overview" data-current-page="02-write-the-test" data-next-page="03-implement-putmapping" data-page-format="markdown" data-page-step="2" data-pages-total="6"><div class="header page-navbar sticky-top bg-primary"><div class="row row-no-gutters"><div class="col-sm-12"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" type="button" data-goto-page="/" aria-label="Home"><span class="fas fa-home fa-inverse" aria-hidden="true"></span></button></div><div class="btn-toolbar float-right" role="toolbar"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" id="header-prev-page" type="button" data-goto-page="01-overview" disabled="" aria-label="Prev"><span class="fas fa-arrow-left fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-goto-toc" type="button" aria-label="TOC" data-toggle="modal" data-target="#table-of-contents"><span class="fas fa-list fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-next-page" type="button" data-goto-page="03-implement-putmapping" disabled="" aria-label="Next"><span class="fas fa-arrow-right fa-inverse" aria-hidden="true"></span></button></div></div></div></div></div><div class="container-fluid main-content"><div class="row"><div class="col-sm-12"><section class="page-content"><h1 class="title">2: Write the Test First</h1><div class="rendered-content"><p>As we have in almost every lab, let&#39;s begin with a test.</p>
+<p>What is the functionality we want our application to have? How do we want our application to behave?</p>
+<p>Let&#39;s define this now, and then work our way towards satisfying our aspirations.</p>
+<ol>
+<li><p>Write the Update test.</p>
+<p>We will use <code>PUT</code> to update <code>CashCards</code>.</p>
+<p>Note that we&#39;ll expect a <code>204 NO_CONTENT</code> response instead of a <code>200 OK</code>. The <code>204</code> indicates that the action was successfully performed and no further action is needed by the caller.</p>
+<p>Edit <code>src/test/java/example/cashcard/CashCardApplicationTests.java</code> and add the following test, which updates Cash Card <code>99</code> and sets its <code>amount</code> to <code>19.99</code>.</p>
+<p>Don&#39;t forget to add the two new imports.</p>
+<pre><code class="hljs language-java"><span class="hljs-keyword">import</span> org.springframework.http.HttpEntity;
+<span class="hljs-keyword">import</span> org.springframework.http.HttpMethod;
+...
+<span class="hljs-meta">@Test</span>
+<span class="hljs-meta">@DirtiesContext</span>
+<span class="hljs-keyword">void</span> <span class="hljs-title function_">shouldUpdateAnExistingCashCard</span><span class="hljs-params">()</span> {
+    <span class="hljs-type">CashCard</span> <span class="hljs-variable">cashCardUpdate</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">CashCard</span>(<span class="hljs-literal">null</span>, <span class="hljs-number">19.99</span>, <span class="hljs-literal">null</span>);
+    HttpEntity&lt;CashCard&gt; request = <span class="hljs-keyword">new</span> <span class="hljs-title class_">HttpEntity</span>&lt;&gt;(cashCardUpdate);
+    ResponseEntity&lt;Void&gt; response = restTemplate
+            .withBasicAuth(<span class="hljs-string">&quot;sarah1&quot;</span>, <span class="hljs-string">&quot;abc123&quot;</span>)
+            .exchange(<span class="hljs-string">&quot;/cashcards/99&quot;</span>, HttpMethod.PUT, request, Void.class);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+}
+</code></pre>
+<h3 id="learning-moment-whats-up-with-resttemplateexchange">Learning Moment: what&#39;s up with <code>restTemplate.exchange()</code>?</h3>
+<p>Did you notice that we&#39;re not using <code>RestTemplate</code> in the same way we have in our previous tests?</p>
+<p>All other tests use <code>RestTemplate.xyzForEntity()</code> methods such as <code>getForEntity()</code> and <code>postForEntity()</code>.</p>
+<p>So, why are we not following the same pattern utilizing <code>putForEntity()</code>?</p>
+<p>Answer: <code>putForEntity()</code> does not exist! Read more about it here in the <a href="https://github.com/spring-projects/spring-framework/issues/15256">GitHub issue</a> about the topic.</p>
+<p>Luckily <code>RestTemplate</code> supports multiple ways of interacting with REST APIs, such as <code>RestTemplate.exchange()</code>.</p>
+<p>Let&#39;s learn about <code>RestTemplate.exchange()</code> now.</p>
+</li>
+<li><p>Understand <code>RestTemplate.exchange()</code>.</p>
+<p>Let&#39;s understand more about what&#39;s happening.</p>
+<p>The <code>exchange()</code> method is a more general version of the <code>xyzForEntity()</code> methods we&#39;ve used in other tests: <code>exchange()</code> requires the verb and the request entity (the body of the request) to be supplied as parameters.</p>
+<p>Using <code>getForEntity()</code> as an example, you can imagine that the following two lines of code accomplish the same goal:</p>
+<p><code>.exchange(&quot;/cashcards/99&quot;, HttpMethod.GET, new HttpEntity(null), String.class);</code></p>
+<p>The above line is functionally equivalent to the following line:</p>
+<p><code>.getForEntity(&quot;/cashcards/99&quot;, String.class);</code></p>
+<p>Now let&#39;s explain the test code.</p>
+<ul>
+<li><p>First we create the <code>HttpEntity</code> that the <code>exchange()</code> method needs:</p>
+<pre><code class="hljs language-java">HttpEntity&lt;CashCard&gt; request = <span class="hljs-keyword">new</span> <span class="hljs-title class_">HttpEntity</span>&lt;&gt;(existingCashCard);
+</code></pre>
+</li>
+<li><p>Then we call <code>exchange()</code>, which sends a <code>PUT</code> request for the target ID of <code>99</code> and updated Cash Card data:</p>
+<pre><code class="hljs language-java">.exchange(<span class="hljs-string">&quot;/cashcards/99&quot;</span>, HttpMethod.PUT, request, Void.class);
+</code></pre>
+</li>
+</ul>
+</li>
+<li><p>Run the tests.</p>
+<p>It&#39;s time to watch our tests <em>fail for the right reasons.</em></p>
+<p>For what reason will our new test fail?</p>
+<p>Note that we&#39;ll always use <code>./gradlew test</code> to run our tests.</p>
+<pre><code class="hljs language-shell">[~/exercises] $ ./gradlew test
+...
+CashCardApplicationTests &gt; shouldUpdateAnExistingCashCard() FAILED
+ org.opentest4j.AssertionFailedError:
+ expected: 204 NO_CONTENT
+  but was: 403 FORBIDDEN
+...
+BUILD FAILED in 6s
+</code></pre>
+<p>Answer: we haven&#39;t implemented a <code>PUT</code> request method handler yet!</p>
+<p>As you can see, the test failed with a <code>403 FORBIDDEN</code> response code.</p>
+<p>With no Controller endpoint, this <code>PUT</code> call is forbidden! Spring Security automatically handled this scenario for us.</p>
+</li>
+</ol>
+<p>Next, let&#39;s implement the Controller endpoint.</p>
+</div><div class="page-meta clearfix"><button class="btn btn-lg btn-primary float-right" id="next-page" type="button" data-next-page="03-implement-putmapping" data-restart-url="https://spring-academy-ui.acad-spr-prd3.labs.spring.academy/workshops/session/spring-academy-w08-s450/delete/" aria-label="Continue">Continue</button></div></section></div></div></div><div class="modal fade" id="table-of-contents" tabindex="-1" role="dialog" aria-labelledby="table-of-contents-title" aria-hidden="true"><div class="modal-dialog" role="document"><div class="modal-content"><div class="modal-header"><h5 id="table-of-contents-title">Lesson</h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body"><ul class="menu"><li class="category"><ul class="modules"><li class="page"><a href="/workshop/content/01-overview">1: Overview</a></li><li class="page active"><a href="/workshop/content/02-write-the-test">2: Write the Test First</a></li><li class="page"><a href="/workshop/content/03-implement-putmapping">3: Implement @PutMapping in the Controller</a></li><li class="page"><a href="/workshop/content/04-test-security">4: Additional Testing and Spring Security's Influence</a></li><li class="page"><a href="/workshop/content/05-refactor">5: Refactor the Controller Code</a></li><li class="page"><a href="/workshop/content/10-summary">6: Summary</a></li></ul></li></ul></div><div class="modal-footer"><button class="btn btn-primary"
+<!DOCTYPE html><html><head><link rel="stylesheet" href="/workshop/static/bootstrap/css/bootstrap.css"><link rel="stylesheet" href="/workshop/static/fontawesome/css/all.min.css"><link rel="stylesheet" href="/workshop/static/highlight.js/styles/default.css"><link rel="stylesheet" href="/workshop/static/styles/educates.css"><link rel="stylesheet" href="/workshop/static/styles/educates-markdown.css"><link rel="stylesheet" href="/workshop/static/theme/workshop-instructions.css"><link rel="shortcut icon" href="/workshop/static/images/favicon.ico"></head><body data-google-tracking-id="" data-clarity-tracking-id="" data-amplitude-tracking-id="" data-workshop-name="course-spring-brasb-oqvxew" data-session-namespace="spring-academy-w08-s450" data-workshop-namespace="spring-academy-w08" data-training-portal="spring-academy" data-ingress-domain="acad-spr-prd3.labs.spring.academy" data-ingress-protocol="https" data-ingress-port-suffix="" data-prev-page="02-write-the-test" data-current-page="03-implement-putmapping" data-next-page="04-test-security" data-page-format="markdown" data-page-step="3" data-pages-total="6"><div class="header page-navbar sticky-top bg-primary"><div class="row row-no-gutters"><div class="col-sm-12"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" type="button" data-goto-page="/" aria-label="Home"><span class="fas fa-home fa-inverse" aria-hidden="true"></span></button></div><div class="btn-toolbar float-right" role="toolbar"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" id="header-prev-page" type="button" data-goto-page="02-write-the-test" disabled="" aria-label="Prev"><span class="fas fa-arrow-left fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-goto-toc" type="button" aria-label="TOC" data-toggle="modal" data-target="#table-of-contents"><span class="fas fa-list fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-next-page" type="button" data-goto-page="04-test-security" disabled="" aria-label="Next"><span class="fas fa-arrow-right fa-inverse" aria-hidden="true"></span></button></div></div></div></div></div><div class="container-fluid main-content"><div class="row"><div class="col-sm-12"><section class="page-content"><h1 class="title">3: Implement @PutMapping in the Controller</h1><div class="rendered-content"><p>Following the pattern we&#39;ve used this far in our Controller, let&#39;s implement the <code>PUT</code> endpoint in our <code>CashCardController</code>.</p>
+<ol>
+<li><p>Add a minimal <code>@PutMapping</code>.</p>
+<p>Edit <code>src/main/java/example/cashcard/CashCardController.java</code> and add the <code>PUT</code> endpoint.</p>
+<pre><code class="hljs language-java"><span class="hljs-meta">@PutMapping(&quot;/{requestedId}&quot;)</span>
+<span class="hljs-keyword">private</span> ResponseEntity&lt;Void&gt; <span class="hljs-title function_">putCashCard</span><span class="hljs-params">(<span class="hljs-meta">@PathVariable</span> Long requestedId, <span class="hljs-meta">@RequestBody</span> CashCard cashCardUpdate)</span> {
+    <span class="hljs-comment">// just return 204 NO CONTENT for now.</span>
+    <span class="hljs-keyword">return</span> ResponseEntity.noContent().build();
+}
+</code></pre>
+<p>This Controller endpoint is fairly self-explanatory:</p>
+<ul>
+<li>The <code>@PutMapping</code> supports the <code>PUT</code> verb and supplies the target <code>requestedId</code>.</li>
+<li>The <code>@RequestBody</code> contains the updated <code>CashCard</code> data.</li>
+<li>Return an HTTP <code>204 NO_CONTENT</code> response code for now just to get started.</li>
+</ul>
+</li>
+<li><p>Run the tests.</p>
+<p>What do you think will happen?</p>
+<p>Let&#39;s run them now.</p>
+<pre><code class="hljs language-shell">...
+CashCardApplicationTests &gt; shouldUpdateAnExistingCashCard() PASSED
+...
+BUILD SUCCESSFUL in 6s
+</code></pre>
+<p>They pass!</p>
+<p>But, that isn&#39;t very satisfying, is it?</p>
+<p>We haven&#39;t updated the <code>CashCard</code>!</p>
+<p>Let&#39;s do that next.</p>
+</li>
+<li><p>Enhance the test to verify a successful update.</p>
+<p>Similar to other verifications we&#39;ve performed in our test suite, let&#39;s assert that the update was successful.</p>
+<pre><code class="hljs language-java"><span class="hljs-keyword">void</span> <span class="hljs-title function_">shouldUpdateAnExistingCashCard</span><span class="hljs-params">()</span> {
+  ...
+  assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+  ResponseEntity&lt;String&gt; getResponse = restTemplate
+          .withBasicAuth(<span class="hljs-string">&quot;sarah1&quot;</span>, <span class="hljs-string">&quot;abc123&quot;</span>)
+          .getForEntity(<span class="hljs-string">&quot;/cashcards/99&quot;</span>, String.class);
+  assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+  <span class="hljs-type">DocumentContext</span> <span class="hljs-variable">documentContext</span> <span class="hljs-operator">=</span> JsonPath.parse(getResponse.getBody());
+  <span class="hljs-type">Number</span> <span class="hljs-variable">id</span> <span class="hljs-operator">=</span> documentContext.read(<span class="hljs-string">&quot;$.id&quot;</span>);
+  <span class="hljs-type">Double</span> <span class="hljs-variable">amount</span> <span class="hljs-operator">=</span> documentContext.read(<span class="hljs-string">&quot;$.amount&quot;</span>);
+  assertThat(id).isEqualTo(<span class="hljs-number">99</span>);
+  assertThat(amount).isEqualTo(<span class="hljs-number">19.99</span>);
+}
+</code></pre>
+</li>
+<li><p>Understand the test updates.</p>
+<ul>
+<li><pre><code class="hljs language-java">ResponseEntity&lt;String&gt; getResponse = restTemplate
+    .withBasicAuth(<span class="hljs-string">&quot;sarah1&quot;</span>, <span class="hljs-string">&quot;abc123&quot;</span>)
+    .getForEntity(<span class="hljs-string">&quot;/cashcards/99&quot;</span>, String.class);
+</code></pre>
+<p>Here we fetch <code>CashCard</code> <code>99</code> again so we can verify that it was updated.</p>
+</li>
+<li><pre><code class="hljs language-java">...
+assertThat(id).isEqualTo(<span class="hljs-number">99</span>);
+assertThat(amount).isEqualTo(<span class="hljs-number">19.99</span>);
+</code></pre>
+<p>Next, we assert that we&#39;ve retrieved the correct <code>CashCard</code> -- <code>99</code> -- and that its <code>amount</code> was successfully updated to <code>19.99</code>.</p>
+</li>
+</ul>
+</li>
+<li><p>Run the tests.</p>
+<p>Our expectations are legit, but we haven&#39;t updated the <code>CashCardController</code> to match.</p>
+<p>The test should fail with valuable error messages, right?</p>
+<p>Let&#39;s run the tests now.</p>
+<pre><code class="hljs language-shell">CashCardApplicationTests &gt; shouldUpdateAnExistingCashCard() FAILED
+ org.opentest4j.AssertionFailedError:
+ expected: 19.99
+  but was: 123.45
+</code></pre>
+<p>Excellent! We expect an amount of <code>19.99</code>, but without any changes we are still returning <code>123.45</code>.</p>
+<p>Let&#39;s update the Controller.</p>
+</li>
+<li><p>Update <code>CashCardController</code> to perform the data update.</p>
+<p>As with our other handler methods, let&#39;s ensure that we guarantee only the <code>CashCard</code> <code>owner</code> can perform the updates -- the logged-in <code>Principal</code> must be the same as the Cash Card <code>owner</code>:</p>
+<pre><code class="hljs language-java"><span class="hljs-meta">@PutMapping(&quot;/{requestedId}&quot;)</span>
+<span class="hljs-keyword">private</span> ResponseEntity&lt;Void&gt; <span class="hljs-title function_">putCashCard</span><span class="hljs-params">(<span class="hljs-meta">@PathVariable</span> Long requestedId, <span class="hljs-meta">@RequestBody</span> CashCard cashCardUpdate, Principal principal)</span> {
+    <span class="hljs-type">CashCard</span> <span class="hljs-variable">cashCard</span> <span class="hljs-operator">=</span> cashCardRepository.findByIdAndOwner(requestedId, principal.getName());
+    <span class="hljs-type">CashCard</span> <span class="hljs-variable">updatedCashCard</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">CashCard</span>(cashCard.id(), cashCardUpdate.amount(), principal.getName());
+    cashCardRepository.save(updatedCashCard);
+    <span class="hljs-keyword">return</span> ResponseEntity.noContent().build();
+}
+</code></pre>
+</li>
+<li><p>Understand the <code>CashCardController</code> updates.</p>
+<p>We&#39;re following a similar pattern as in the <code>@PostMapping createCashCard()</code> endpoint.</p>
+<ul>
+<li><pre><code class="hljs language-java"><span class="hljs-meta">@PutMapping(&quot;/{requestedId}&quot;)</span>
+<span class="hljs-keyword">private</span> ResponseEntity&lt;Void&gt; <span class="hljs-title function_">putCashCard</span><span class="hljs-params">(<span class="hljs-meta">@PathVariable</span> Long requestedId, <span class="hljs-meta">@RequestBody</span> CashCard cashCardUpdate, Principal principal)</span> {
+</code></pre>
+<p>We&#39;ve added the <code>Principal</code> as a method argument, provided automatically by Spring Security.</p>
+<p>Thanks once again, Spring Security!</p>
+</li>
+<li><pre><code class="hljs language-java">cashCardRepository.findByIdAndOwner(requestedId, principal.getName());
+</code></pre>
+<p>Here we scope our retrieval of the <code>CashCard</code> to the submitted <code>requestedId</code> and <code>Principal</code> (provided by Spring Security) to ensure only the authenticated, authorized <code>owner</code> may update this <code>CashCard</code>.</p>
+</li>
+<li><pre><code class="hljs language-java"><span class="hljs-type">CashCard</span> <span class="hljs-variable">updatedCashCard</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">CashCard</span>(cashCard.id(), cashCardUpdate.amount(), principal.getName());
+cashCardRepository.save(updatedCashCard);
+</code></pre>
+<p>Finally, build a <code>CashCard</code> with updated values and save it.</p>
+</li>
+</ul>
+<p>That was a lot! Let&#39;s run the tests and assess where we&#39;re at.</p>
+</li>
+<li><p>Run the tests.</p>
+<p>They pass!</p>
+<pre><code class="hljs language-shell">...
+CashCardApplicationTests &gt; shouldUpdateAnExistingCashCard() PASSED
+...
+BUILD SUCCESSFUL in 6s
+</code></pre>
+</li>
+</ol>
+<p>We&#39;ve successfully implemented updating a <code>CashCard</code>.</p>
+<p>But what happens if we attempt to update a <code>CashCard</code> that does not exist?</p>
+<p>Let&#39;s test that scenario next.</p>
+</div><div class="page-meta clearfix"><button class="btn btn-lg btn-primary float-right" id="next-page" type="button" data-next-page="04-test-security" data-restart-url="https://spring-academy-ui.acad-spr-prd3.labs.spring.academy/workshops/session/spring-academy-w08-s450/delete/" aria-label="Continue">Continue</button></div></section></div></div></div><div class="modal fade" id="table-of-contents" tabindex="-1" role="dialog" aria-labelledby="table-of-contents-title" aria-hidden="true"><div class="modal-dialog" role="document"><div class="modal-content"><div class="modal-header"><h5 id="table-of-contents-title">Lesson</h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body"><ul class="menu"><li class="category"><ul class="modules"><li class="page"><a href="/workshop/content/01-overview">1: Overview</a></li><li class="page"><a href="/workshop/content/02-write-the-test">2: Write the Test First</a></li><li class="page active"><a href="/workshop/content/03-implement-putmapping">3: Implement @PutMapping in the Controller</a></li><li class="page"><a href="/workshop/content/04-test-security">4: Additional Testing and Spring Security's Influence</a></li><li class="page"><a href="/workshop/content/05-refactor">5: Refactor the Controller Code</a></li><li class="page"><a href="/workshop/content/10-summary">6: Summary</a></li></ul></li></ul></div><div class="modal-footer"><button class="btn btn-primary" type="button" data-dismiss="modal">Close</button></div></div></div></div><div class="modal fade" id="preview-image-dialog" role="dialog"><div class="modal-dialog modal-dialog-centered" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="preview-image-title"></h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body preview-image-body"><img class="img-fluid" id="preview-image-element"></div><div class="modal-footer"><button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button></div></div></div></div><script src="/workshop/static/scripts/educates-bundle.min.js"></script><script src="/workshop/static/theme/workshop-instructions.js"></script></body></html>
+type="button" data-dismiss="modal">Close</button></div></div></div></div><div class="modal fade" id="preview-image-dialog" role="dialog"><div class="modal-dialog modal-dialog-centered" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="preview-image-title"></h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body preview-image-body"><img class="img-fluid" id="preview-image-element"></div><div class="modal-footer"><button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button></div></div></div></div><script src="/workshop/static/scripts/educates-bundle.min.js"></script><script src="/workshop/static/theme/workshop-instructions.js"></script></body></html>
+
+
+
+
+<!DOCTYPE html><html><head><link rel="stylesheet" href="/workshop/static/bootstrap/css/bootstrap.css"><link rel="stylesheet" href="/workshop/static/fontawesome/css/all.min.css"><link rel="stylesheet" href="/workshop/static/highlight.js/styles/default.css"><link rel="stylesheet" href="/workshop/static/styles/educates.css"><link rel="stylesheet" href="/workshop/static/styles/educates-markdown.css"><link rel="stylesheet" href="/workshop/static/theme/workshop-instructions.css"><link rel="shortcut icon" href="/workshop/static/images/favicon.ico"></head><body data-google-tracking-id="" data-clarity-tracking-id="" data-amplitude-tracking-id="" data-workshop-name="course-spring-brasb-oqvxew" data-session-namespace="spring-academy-w08-s450" data-workshop-namespace="spring-academy-w08" data-training-portal="spring-academy" data-ingress-domain="acad-spr-prd3.labs.spring.academy" data-ingress-protocol="https" data-ingress-port-suffix="" data-prev-page="03-implement-putmapping" data-current-page="04-test-security" data-next-page="05-refactor" data-page-format="markdown" data-page-step="4" data-pages-total="6"><div class="header page-navbar sticky-top bg-primary"><div class="row row-no-gutters"><div class="col-sm-12"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" type="button" data-goto-page="/" aria-label="Home"><span class="fas fa-home fa-inverse" aria-hidden="true"></span></button></div><div class="btn-toolbar float-right" role="toolbar"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" id="header-prev-page" type="button" data-goto-page="03-implement-putmapping" disabled="" aria-label="Prev"><span class="fas fa-arrow-left fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-goto-toc" type="button" aria-label="TOC" data-toggle="modal" data-target="#table-of-contents"><span class="fas fa-list fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-next-page" type="button" data-goto-page="05-refactor" disabled="" aria-label="Next"><span class="fas fa-arrow-right fa-inverse" aria-hidden="true"></span></button></div></div></div></div></div><div class="container-fluid main-content"><div class="row"><div class="col-sm-12"><section class="page-content"><h1 class="title">4: Additional Testing and Spring Security's Influence</h1><div class="rendered-content"><p>What would happen if we tried to update a Cash Card that doesn&#39;t exist?</p>
+<p>Let&#39;s add a test and find out.</p>
+<ol>
+<li><p>Try to update a Cash Card that doesn&#39;t exist.</p>
+<p>Add the following test to <code>CashCardApplicationTests</code>.</p>
+<pre><code class="hljs language-java"><span class="hljs-meta">@Test</span>
+<span class="hljs-keyword">void</span> <span class="hljs-title function_">shouldNotUpdateACashCardThatDoesNotExist</span><span class="hljs-params">()</span> {
+    <span class="hljs-type">CashCard</span> <span class="hljs-variable">unknownCard</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">CashCard</span>(<span class="hljs-literal">null</span>, <span class="hljs-number">19.99</span>, <span class="hljs-literal">null</span>);
+    HttpEntity&lt;CashCard&gt; request = <span class="hljs-keyword">new</span> <span class="hljs-title class_">HttpEntity</span>&lt;&gt;(unknownCard);
+    ResponseEntity&lt;Void&gt; response = restTemplate
+            .withBasicAuth(<span class="hljs-string">&quot;sarah1&quot;</span>, <span class="hljs-string">&quot;abc123&quot;</span>)
+            .exchange(<span class="hljs-string">&quot;/cashcards/99999&quot;</span>, HttpMethod.PUT, request, Void.class);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+}
+</code></pre>
+<p>Here we&#39;ll attempt to update a Cash Card with ID <code>99999</code>, which does not exist.</p>
+<p>We should expect a generic <code>404 NOT_FOUND</code> error.</p>
+</li>
+<li><p>Run the tests.</p>
+<p>Let&#39;s make a hypothesis about what will happen when we run the tests.</p>
+<p>Run the tests and observe the results.</p>
+<pre><code class="hljs language-shell">...
+CashCardApplicationTests &gt; shouldNotUpdateACashCardThatDoesNotExist() FAILED
+ org.opentest4j.AssertionFailedError:
+ expected: 404 NOT_FOUND
+  but was: 403 FORBIDDEN
+</code></pre>
+<p>Well that&#39;s...interesting. Why did we get a <code>403 FORBIDDEN</code>?</p>
+<p>Before we run them again, let&#39;s edit <code>build.gradle</code> to enable additional test output.</p>
+<pre><code class="hljs language-groovy">test {
+ testLogging {
+     ...
+     // Change to `true` for more verbose test output
+     showStandardStreams = true
+ }
+}
+</code></pre>
+<p>After rerunning the tests, search the output for the following:</p>
+<pre><code class="hljs language-shell">CashCardApplicationTests &gt; shouldNotUpdateACashCardThatDoesNotExist() STANDARD_OUT
+...
+java.lang.NullPointerException: Cannot invoke &quot;example.cashcard.CashCard.id()&quot; because &quot;cashCard&quot; is null
+</code></pre>
+<p>A <code>NullPointerException</code>! Why a <code>NullPointerException</code>?</p>
+<p>Looking at <code>CashCardController.putCashCard</code> we can see that if we don&#39;t find the <code>cashCard</code> then method calls to <code>cashCard</code> will result in a <code>NullPointerException</code>. That makes sense.</p>
+<p>But why is a <code>NullPointerException</code> thrown in our Controller resulting in a <code>403 FORBIDDEN</code> instead of a <code>500 INTERNAL_SERVER_ERROR</code>, given the server &quot;crashed?&quot;</p>
+<h3 id="learning-moment-spring-security-and-error-handling">Learning Moment: Spring Security and Error Handling</h3>
+<p>Our Controller is returning <code>403 FORBIDDEN</code> instead of an <code>500 INTERNAL_SERVER_ERROR</code> because Spring Security is automatically implementing a best practice regarding how errors are handled by Spring Web.</p>
+<p>It&#39;s important to understand that any information returned from our application might be useful to a bad actor attempting to violate our application&#39;s security. For example: knowledge about actions that causes our application to crash -- a <code>500 INTERNAL_SERVER_ERROR</code>.</p>
+<p>In order to avoid &quot;leaking&quot; information about our application, Spring Security has configured Spring Web to return a generic <code>403 FORBIDDEN</code> in most error conditions. If almost everything results in a <code>403 FORBIDDEN</code> response then an attacker doesn&#39;t really know what&#39;s going on.</p>
+<p>Now that we understand what is happening, let&#39;s fix it.</p>
+</li>
+<li><p>Don&#39;t crash.</p>
+<p>Though we&#39;re thankful to Spring Security, our application should not crash - we shouldn&#39;t allow our code to throw a <code>NullPointerException</code>. Instead, we should handle the condition when <code>cashCard == null</code>, and return a generic <code>404 NOT_FOUND</code> HTTP response.</p>
+<p>Update <code>CashCardController.putCashCard</code> to return <code>404 NOT_FOUND</code> if no existing <code>CashCard</code> is found.</p>
+<pre><code class="hljs language-java"><span class="hljs-meta">@PutMapping(&quot;/{requestedId}&quot;)</span>
+<span class="hljs-keyword">private</span> ResponseEntity&lt;Void&gt; <span class="hljs-title function_">putCashCard</span><span class="hljs-params">(<span class="hljs-meta">@PathVariable</span> Long requestedId, <span class="hljs-meta">@RequestBody</span> CashCard cashCardUpdate, Principal principal)</span> {
+    <span class="hljs-type">CashCard</span> <span class="hljs-variable">cashCard</span> <span class="hljs-operator">=</span> cashCardRepository.findByIdAndOwner(requestedId, principal.getName());
+    <span class="hljs-keyword">if</span> (cashCard != <span class="hljs-literal">null</span>) {
+        <span class="hljs-type">CashCard</span> <span class="hljs-variable">updatedCashCard</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">CashCard</span>(cashCard.id(), cashCardUpdate.amount(), principal.getName());
+        cashCardRepository.save(updatedCashCard);
+        <span class="hljs-keyword">return</span> ResponseEntity.noContent().build();
+    }
+    <span class="hljs-keyword">return</span> ResponseEntity.notFound().build();
+}
+</code></pre>
+</li>
+<li><p>Run the tests.</p>
+<p>Our tests pass now that we&#39;re returning a <code>404</code> when no <code>CashCard</code> is found for this user.</p>
+<pre><code class="hljs language-shell">BUILD SUCCESSFUL in 6s
+</code></pre>
+</li>
+</ol>
+<hr>
+</div><div class="page-meta clearfix"><button class="btn btn-lg btn-primary float-right" id="next-page" type="button" data-next-page="05-refactor" data-restart-url="https://spring-academy-ui.acad-spr-prd3.labs.spring.academy/workshops/session/spring-academy-w08-s450/delete/" aria-label="Continue">Continue</button></div></section></div></div></div><div class="modal fade" id="table-of-contents" tabindex="-1" role="dialog" aria-labelledby="table-of-contents-title" aria-hidden="true"><div class="modal-dialog" role="document"><div class="modal-content"><div class="modal-header"><h5 id="table-of-contents-title">Lesson</h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body"><ul class="menu"><li class="category"><ul class="modules"><li class="page"><a href="/workshop/content/01-overview">1: Overview</a></li><li class="page"><a href="/workshop/content/02-write-the-test">2: Write the Test First</a></li><li class="page"><a href="/workshop/content/03-implement-putmapping">3: Implement @PutMapping in the Controller</a></li><li class="page active"><a href="/workshop/content/04-test-security">4: Additional Testing and Spring Security's Influence</a></li><li class="page"><a href="/workshop/content/05-refactor">5: Refactor the Controller Code</a></li><li class="page"><a href="/workshop/content/10-summary">6: Summary</a></li></ul></li></ul></div><div class="modal-footer"><button class="btn btn-primary" type="button" data-dismiss="modal">Close</button></div></div></div></div><div class="modal fade" id="preview-image-dialog" role="dialog"><div class="modal-dialog modal-dialog-centered" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="preview-image-title"></h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body preview-image-body"><img class="img-fluid" id="preview-image-element"></div><div class="modal-footer"><button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button></div></div></div></div><script src="/workshop/static/scripts/educates-bundle.min.js"></script><script src="/workshop/static/theme/workshop-instructions.js"></script></body></html>
+
+
+
+
+<!DOCTYPE html><html><head><link rel="stylesheet" href="/workshop/static/bootstrap/css/bootstrap.css"><link rel="stylesheet" href="/workshop/static/fontawesome/css/all.min.css"><link rel="stylesheet" href="/workshop/static/highlight.js/styles/default.css"><link rel="stylesheet" href="/workshop/static/styles/educates.css"><link rel="stylesheet" href="/workshop/static/styles/educates-markdown.css"><link rel="stylesheet" href="/workshop/static/theme/workshop-instructions.css"><link rel="shortcut icon" href="/workshop/static/images/favicon.ico"></head><body data-google-tracking-id="" data-clarity-tracking-id="" data-amplitude-tracking-id="" data-workshop-name="course-spring-brasb-oqvxew" data-session-namespace="spring-academy-w08-s450" data-workshop-namespace="spring-academy-w08" data-training-portal="spring-academy" data-ingress-domain="acad-spr-prd3.labs.spring.academy" data-ingress-protocol="https" data-ingress-port-suffix="" data-prev-page="04-test-security" data-current-page="05-refactor" data-next-page="10-summary" data-page-format="markdown" data-page-step="5" data-pages-total="6"><div class="header page-navbar sticky-top bg-primary"><div class="row row-no-gutters"><div class="col-sm-12"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" type="button" data-goto-page="/" aria-label="Home"><span class="fas fa-home fa-inverse" aria-hidden="true"></span></button></div><div class="btn-toolbar float-right" role="toolbar"><div class="btn-group btn-group-sm" role="group"><button class="btn btn-transparent" id="header-prev-page" type="button" data-goto-page="04-test-security" disabled="" aria-label="Prev"><span class="fas fa-arrow-left fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-goto-toc" type="button" aria-label="TOC" data-toggle="modal" data-target="#table-of-contents"><span class="fas fa-list fa-inverse" aria-hidden="true"></span></button><button class="btn btn-transparent" id="header-next-page" type="button" data-goto-page="10-summary" disabled="" aria-label="Next"><span class="fas fa-arrow-right fa-inverse" aria-hidden="true"></span></button></div></div></div></div></div><div class="container-fluid main-content"><div class="row"><div class="col-sm-12"><section class="page-content"><h1 class="title">5: Refactor the Controller Code</h1><div class="rendered-content"><p>Let&#39;s reinforce your usage of the Red, Green, Refactor development loop.</p>
+<p>We have just completed several tests focused on updating an existing Cash Card.</p>
+<p>Do we have any opportunities to simplify, reduce duplication, or otherwise refactor our code without changing behavior?</p>
+<p>Continue on to address several refactoring opportunities.</p>
+<h3 id="simplify-the-code">Simplify the Code</h3>
+<ol>
+<li><p>Remove the <code>Optional</code>.</p>
+<p>This might be controversial: since we are not taking advantage of features of <code>Optional</code> in <code>CashCardController.findById</code>, and no other Controller methods use an <code>Optional</code>, let&#39;s simplify our code by removing it.</p>
+<p>Edit <code>CashCardController.findById</code> to remove the usage of the <code>Optional</code>:</p>
+<pre><code class="hljs language-java"><span class="hljs-comment">// remove the unused Optional import if present</span>
+<span class="hljs-comment">// import java.util.Optional;</span>
+
+<span class="hljs-meta">@GetMapping(&quot;/{requestedId}&quot;)</span>
+<span class="hljs-keyword">public</span> ResponseEntity&lt;CashCard&gt; <span class="hljs-title function_">findById</span><span class="hljs-params">(<span class="hljs-meta">@PathVariable</span> Long requestedId, Principal principal)</span> {
+    <span class="hljs-type">CashCard</span> <span class="hljs-variable">cashCard</span> <span class="hljs-operator">=</span> cashCardRepository.findByIdAndOwner(requestedId, principal.getName());
+    <span class="hljs-keyword">if</span> (cashCard != <span class="hljs-literal">null</span>) {
+        <span class="hljs-keyword">return</span> ResponseEntity.ok(cashCard);
+    } <span class="hljs-keyword">else</span> {
+        <span class="hljs-keyword">return</span> ResponseEntity.notFound().build();
+    }
+}
+</code></pre>
+</li>
+<li><p>Run the tests.</p>
+<p>Because we have not changed any functionality, the tests will continue to pass.</p>
+<pre><code class="hljs language-shell">./gradlew test
+...
+BUILD SUCCESSFUL in 6s
+</code></pre>
+</li>
+</ol>
+<h3 id="reduce-code-duplication">Reduce Code Duplication</h3>
+<p>Note that both <code>CashCardController.findById</code> and <code>CashCardController.putCashCard</code> have nearly identical code that retrieves a target <code>CashCard</code> from the <code>CashCardRepository</code> using information from a <code>CashCard</code> and <code>Principal</code>.</p>
+<p>Let&#39;s reduce code duplication by extracting a helper method named <code>findCashCard</code> and utilizing it in both <code>.findById</code> and <code>.putCashCard</code>.</p>
+<p>This will allow us to update how we retrieve a <code>CashCard</code> in one place as the Controller changes over time.</p>
+<ol>
+<li><p>Create a shared <code>findCashCard</code> method.</p>
+<p>Create a new <code>private</code> method in <code>CashCardController</code> named <code>findCashCard</code>, using functionality we&#39;ve written before:</p>
+<pre><code class="hljs language-java"><span class="hljs-keyword">private</span> CashCard <span class="hljs-title function_">findCashCard</span><span class="hljs-params">(Long requestedId, Principal principal)</span> {
+    <span class="hljs-keyword">return</span> cashCardRepository.findByIdAndOwner(requestedId, principal.getName());
+}
+</code></pre>
+</li>
+<li><p>Update <code>CashCardController.findById</code> and rerun the tests.</p>
+<p>Next, utilize the new <code>findCashCard</code> method in <code>CashCardController.findById</code>.</p>
+<pre><code class="hljs language-java"><span class="hljs-meta">@GetMapping(&quot;/{requestedId}&quot;)</span>
+<span class="hljs-keyword">public</span> ResponseEntity&lt;CashCard&gt; <span class="hljs-title function_">findById</span><span class="hljs-params">(<span class="hljs-meta">@PathVariable</span> Long requestedId, Principal principal)</span> {
+    <span class="hljs-type">CashCard</span> <span class="hljs-variable">cashCard</span> <span class="hljs-operator">=</span> findCashCard(requestedId, principal);
+    ...
+</code></pre>
+<p>No functionality has changed, so no tests should fail when we rerun the tests.</p>
+<pre><code class="hljs language-shell">./gradlew test
+...
+BUILD SUCCESSFUL in 6s
+</code></pre>
+</li>
+<li><p>Update <code>CashCardController.putCashCard</code> and rerun the tests.</p>
+<p>Similar to the previous step, utilize the new <code>findCashCard</code> method in <code>CashCardController.putCashCard</code>.</p>
+<pre><code class="hljs language-java"><span class="hljs-meta">@PutMapping(&quot;/{requestedId}&quot;)</span>
+<span class="hljs-keyword">private</span> ResponseEntity&lt;Void&gt; <span class="hljs-title function_">putCashCard</span><span class="hljs-params">(<span class="hljs-meta">@PathVariable</span> Long requestedId, <span class="hljs-meta">@RequestBody</span> CashCard cashCardUpdate, Principal principal)</span> {
+    <span class="hljs-type">CashCard</span> <span class="hljs-variable">cashCard</span> <span class="hljs-operator">=</span> findCashCard(requestedId, principal);
+    ...
+</code></pre>
+<p>As with the other refactoring we have performed, no functionality has changed, so no tests should fail when we rerun the tests.</p>
+<pre><code class="hljs language-shell">./gradlew test
+...
+BUILD SUCCESSFUL in 6s
+</code></pre>
+</li>
+</ol>
+<p>Look at that! We have refactored our code by simplifying it and also reduced code duplication.</p>
+</div><div class="page-meta clearfix"><button class="btn btn-lg btn-primary float-right" id="next-page" type="button" data-next-page="10-summary" data-restart-url="https://spring-academy-ui.acad-spr-prd3.labs.spring.academy/workshops/session/spring-academy-w08-s450/delete/" aria-label="Continue">Continue</button></div></section></div></div></div><div class="modal fade" id="table-of-contents" tabindex="-1" role="dialog" aria-labelledby="table-of-contents-title" aria-hidden="true"><div class="modal-dialog" role="document"><div class="modal-content"><div class="modal-header"><h5 id="table-of-contents-title">Lesson</h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body"><ul class="menu"><li class="category"><ul class="modules"><li class="page"><a href="/workshop/content/01-overview">1: Overview</a></li><li class="page"><a href="/workshop/content/02-write-the-test">2: Write the Test First</a></li><li class="page"><a href="/workshop/content/03-implement-putmapping">3: Implement @PutMapping in the Controller</a></li><li class="page"><a href="/workshop/content/04-test-security">4: Additional Testing and Spring Security's Influence</a></li><li class="page active"><a href="/workshop/content/05-refactor">5: Refactor the Controller Code</a></li><li class="page"><a href="/workshop/content/10-summary">6: Summary</a></li></ul></li></ul></div><div class="modal-footer"><button class="btn btn-primary" type="button" data-dismiss="modal">Close</button></div></div></div></div><div class="modal fade" id="preview-image-dialog" role="dialog"><div class="modal-dialog modal-dialog-centered" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="preview-image-title"></h5><button class="close" type="button" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body preview-image-body"><img class="img-fluid" id="preview-image-element"></div><div class="modal-footer"><button class="btn btn-secondary" type="button" data-dismiss="modal">Close</button></div></div></div></div><script src="/workshop/static/scripts/educates-bundle.min.js"></script><script src="/workshop/static/theme/workshop-instructions.js"></script></body></html>
+
 
